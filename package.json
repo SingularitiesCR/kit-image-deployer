@@ -23,7 +23,7 @@
     "commander": "2.9.0",
     "lodash": "4.6.1",
     "log4js": "0.6.33",
-    "github": "0.2.4",
+    "github": "9.2.0",
     "js-yaml": "3.5.4"
   },
   "devDependencies": {

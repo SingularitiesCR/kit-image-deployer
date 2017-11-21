@@ -17,12 +17,13 @@ program
 	.option("--github-auth-token <token>", "Your github token to access the repo", process.env.GITHUB_AUTH_TOKEN)
 	.option("--github-user <user>", "The github user that the repo belongs to", process.env.GITHUB_USER)
 	.option("--github-repo <repo>", "The github repo name", process.env.GITHUB_REPO)
+	.option("--github-branch <branch>", "The name of the GitHub branch (it not defined, CI_BRANCH is used", process.env.GITHUB_BRANCH)
 	.option("--docker-registry <registry>", "The url for the docker registry", process.env.DOCKER_REGISTRY)
 	.option("--docker-repo <repo>", "The repo to use within the docker registry", process.env.DOCKER_REPO)
 	.option("--committer-name <name>", "The name of the person who committed the change", process.env.CI_COMMITTER_NAME)
 	.option("--committer-email <email>", "The email of the person who committed the change", process.env.CI_COMMITTER_EMAIL)
 	.option("--commit-message <message>", "The commit message", process.env.CI_COMMIT_MESSAGE)
-	.option("--branch <branch>", "The name of the branch", process.env.CI_BRANCH)
+	.option("--image-branch <branch>", "The name of the CI branch", process.env.CI_BRANCH)
 	.option("--commit-id <id>", "The commit hash or ID (must provide this or `--image`)", process.env.CI_COMMIT_ID)
 	.option("--image <image>", "The full path and tag to the docker image (must provide this or `--commit-id`)", process.env.IMAGE)
 	.option("--retries <retries>", "Specify the number of times you want to automatically retry the commit if it fails", parseInt(process.env.RETRIES))
@@ -41,13 +42,17 @@ if (!program.commitId && !program.image) {
 	throw new Error("You must provide a 'commitId' OR an 'image'");
 }
 
+if (!program.githubBranch) {
+	program.githubBranch = program.imageBranch;
+}
 // Initialize Operation instance
 var imageDeployer = new ImageDeployer({
 	retries: program.retries,
 	github: {
 		token: program.githubAuthToken,
 		user: program.githubUser,
-		repo: program.githubRepo
+		repo: program.githubRepo,
+		branch: program.githubBranch
 	},
 	docker: {
 		registry: program.dockerRegistry,
@@ -66,14 +71,14 @@ var method;
 if (program.image) {
 	method = imageDeployer.deployImage(
 		program.image,
-		program.branch,
+		program.imageBranch,
 		committer,
 		program.commitMessage,
 		program.commit);
 } else {
 	method = imageDeployer.deployCommitId(
 		program.commitId,
-		program.branch,
+		program.imageBranch,
 		committer,
 		program.commitMessage,
 		program.commit);

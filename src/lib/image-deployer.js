@@ -5,6 +5,7 @@ const yaml = require("js-yaml");
 const _ = require("lodash");
 const path = require("path");
 const GitHubApi = require("github");
+var logger = require("log4js").getLogger();
 
 class ImageDeployer {
 	constructor(options) {
@@ -17,7 +18,8 @@ class ImageDeployer {
 			github: {
 				token: undefined,
 				user: undefined,
-				repo: undefined
+				repo: undefined,
+				branch: undefined
 			}
 		}, options);
 
@@ -36,23 +38,23 @@ class ImageDeployer {
 	}
 
 	deployCommitId(commitId, branch, committer, message, save) {
-		var image = this.options.docker.registry + "/" + this.options.docker.repo + ":" + branch + "-" + commitId;
+		var image = this.options.docker.registry + "/" + this.options.docker.repo + ":" + branch.replace(/^\//, "-") + "-" + commitId;
 		return this.deployImage(image, branch, committer, message, save);
 	}
 
 	getImageFile(property, imageFilePath, branch) {
 		const self = this;
 		const imageRequest = {
-			user: self.options.github.user,
+			owner: self.options.github.user,
 			repo: self.options.github.repo,
-			path: imageFilePath
+			path: imageFilePath,
+			ref: self.options.github.branch
 		};
-
 		return self.github
 			.getContent(imageRequest)
 			.then((imageResponse) => {
 				// get
-				const rawFile = new Buffer(imageResponse.content, imageResponse.encoding).toString("ascii");
+				const rawFile = new Buffer(imageResponse.data.content, imageResponse.data.encoding).toString("ascii");
 				const file = yaml.safeLoad(rawFile);
 
 				// update specified property in file
@@ -64,7 +66,7 @@ class ImageDeployer {
 				}
 				return {
 					file: file,
-					sha: imageResponse.sha
+					sha: imageResponse.data.sha
 				}
 			})
 	}
@@ -72,7 +74,11 @@ class ImageDeployer {
 	attemptCommit(config, image, branch, committer, message, save) {
 		return new Promise((resolve, reject) => {
 			const self = this;
-			const imageFilePath = path.join(config.images.path.replace(/^\//, ""), self.options.docker.repo, branch + ".yaml");
+			const imageFilePath = path.join(
+					config.images.path.replace(/^\//, ""),
+					self.options.docker.registry,
+					self.options.docker.repo,
+					branch + ".yaml");
 			const property = config.images.property;
 			var tries = 0;
 			function attempt(lastError) {
@@ -98,13 +104,14 @@ class ImageDeployer {
 
 							self.github
 								.updateFile({
-									user: self.options.github.user,
+									owner: self.options.github.user,
 									repo: self.options.github.repo,
 									path: imageFilePath,
 									message: message,
 									content: updatedFile,
-									committer: committer,
-									sha: imageFile.sha
+									sha: imageFile.sha,
+									branch: branch,
+									committer: committer
 								})
 								.then(function() {
 									resolve("Successfully " + commitMsg);
@@ -130,12 +137,13 @@ class ImageDeployer {
 							}
 
 							return self.github.createFile({
-								user: self.options.github.user,
+								owner: self.options.github.user,
 								repo: self.options.github.repo,
 								path: imageFilePath,
 								message: message,
 								content: createdFile,
-								committer: committer
+								committer: committer,
+								branch: branch
 							})
 							.then(() => {
 								resolve("Successfully " + commitMsg);
@@ -160,14 +168,14 @@ class ImageDeployer {
 		const self = this;
 		return new Promise(function(resolve, reject) {
 			const configRequest = {
-				user: self.options.github.user,
+				owner: self.options.github.user,
 				repo: self.options.github.repo,
-				path: "kit.yaml"
+				path: "kit.yaml",
+				ref: self.options.github.branch
 			};
-
 			self.github.getContent(configRequest)
 				.then(function(configResponse) {
-					const rawConfig = new Buffer(configResponse.content, configResponse.encoding).toString("ascii");
+					const rawConfig = new Buffer(configResponse.data.content, configResponse.data.encoding).toString("ascii");
 					const config = yaml.safeLoad(rawConfig);
 					return self.attemptCommit(config, image, branch, committer, message, save);
 				})
