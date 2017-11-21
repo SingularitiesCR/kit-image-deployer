@@ -1,10 +1,10 @@
 "use strict";
 
+const GitHubApi = require("github");
 const Promise = require("bluebird");
-const yaml = require("js-yaml");
 const _ = require("lodash");
 const path = require("path");
-const GitHubApi = require("github");
+const yaml = require("js-yaml");
 var logger = require("log4js").getLogger();
 
 class ImageDeployer {
@@ -51,24 +51,24 @@ class ImageDeployer {
 			ref: self.options.github.branch
 		};
 		return self.github
-			.getContent(imageRequest)
-			.then((imageResponse) => {
-				// get
-				const rawFile = new Buffer(imageResponse.data.content, imageResponse.data.encoding).toString("ascii");
-				const file = yaml.safeLoad(rawFile);
+				.getContent(imageRequest)
+				.then((imageResponse) => {
+					// get
+					const rawFile = new Buffer(imageResponse.data.content, imageResponse.data.encoding).toString("ascii");
+					const file = yaml.safeLoad(rawFile);
 
-				// update specified property in file
-				if (!_.isObject(file)) {
-					throw new Error("Only support updating yaml type files");
-				}
-				if (!property) {
-					throw new Error("Require configuration missing: 'property'");
-				}
-				return {
-					file: file,
-					sha: imageResponse.data.sha
-				}
-			})
+					// update specified property in file
+					if (!_.isObject(file)) {
+						throw new Error("Only support updating yaml type files");
+					}
+					if (!property) {
+						throw new Error("Require configuration missing: 'property'");
+					}
+					return {
+						file: file,
+						sha: imageResponse.data.sha
+					}
+				})
 	}
 
 	attemptCommit(config, image, branch, committer, message, save) {
@@ -81,6 +81,7 @@ class ImageDeployer {
 					branch + ".yaml");
 			const property = config.images.property;
 			var tries = 0;
+
 			function attempt(lastError) {
 				tries++;
 				if (tries > self.options.retries) {
@@ -88,75 +89,76 @@ class ImageDeployer {
 				}
 
 				self
-					.getImageFile(property, imageFilePath, branch)
-					.then((imageFile) => {
-						// only save if the image has changed
-						if (imageFile.file[property] !== image) {
-							const commitMsg = "committed " + property + ": '" + image + "' to " + imageFilePath;
+						.getImageFile(property, imageFilePath, branch)
+						.then((imageFile) => {
+							// only save if the image has changed
+							if (imageFile.file[property] !== image) {
+								const commitMsg = "committed " + property + ": '" + image + "' to " + imageFilePath;
 
-							imageFile.file[property] = image;
-							const updatedFile = new Buffer(yaml.safeDump(imageFile.file)).toString("base64");
+								imageFile.file[property] = image;
+								let imageFileBuffer = new Buffer(yaml.safeDump(imageFile.file));
+								const updatedFile = imageFileBuffer.toString("base64");
 
-							// only continue saving if commit is enabled
-							if (!save) {
-								return "Commit disabled, but would have " + commitMsg;
+								// only continue saving if commit is enabled
+								if (!save) {
+									return "Commit disabled, but would have " + commitMsg;
+								}
+
+								self.github
+										.updateFile({
+											owner: self.options.github.user,
+											repo: self.options.github.repo,
+											path: imageFilePath,
+											message: message,
+											content: updatedFile,
+											sha: imageFile.sha,
+											branch: branch,
+											committer: committer
+										})
+										.then(function () {
+											resolve("Successfully " + commitMsg);
+										})
+										.catch((err) => {
+											attempt(err);
+										});
+							} else {
+								resolve("No changes found for " + property + ": '" + image + "' to " + imageFilePath);
 							}
+						})
+						.catch((err) => {
+							if (err && err.code && err.code === 404) {
+								// create file if it does not exist yet
+								var newFile = {};
+								newFile[property] = image;
+								var createdFile = new Buffer(yaml.safeDump(newFile)).toString("base64");
+								var commitMsg = "committed " + property + ": '" + image + "' to " + imageFilePath;
 
-							self.github
-								.updateFile({
+								// only continue saving if commit is enabled
+								if (!save) {
+									return "Commit disabled, but would have " + commitMsg;
+								}
+
+								return self.github.createFile({
 									owner: self.options.github.user,
 									repo: self.options.github.repo,
 									path: imageFilePath,
 									message: message,
-									content: updatedFile,
-									sha: imageFile.sha,
-									branch: branch,
-									committer: committer
+									content: createdFile,
+									committer: committer,
+									branch: branch
 								})
-								.then(function() {
-									resolve("Successfully " + commitMsg);
-								})
-								.catch((err) => {
-									attempt(err);
-								});
-						} else {
-							resolve("No changes found for " + property + ": '" + image + "' to " + imageFilePath);
-						}
-					})
-					.catch((err) => {
-						if (err && err.code && err.code === 404) {
-							// create file if it does not exist yet
-							var newFile = {};
-							newFile[property] = image;
-							var createdFile = new Buffer(yaml.safeDump(newFile)).toString("base64");
-							var commitMsg = "committed " + property + ": '" + image + "' to " + imageFilePath;
-
-							// only continue saving if commit is enabled
-							if (!save) {
-								return "Commit disabled, but would have " + commitMsg;
-							}
-
-							return self.github.createFile({
-								owner: self.options.github.user,
-								repo: self.options.github.repo,
-								path: imageFilePath,
-								message: message,
-								content: createdFile,
-								committer: committer,
-								branch: branch
-							})
-							.then(() => {
-								resolve("Successfully " + commitMsg);
-							})
-							.catch(() => {
+										.then(() => {
+											resolve("Successfully " + commitMsg);
+										})
+										.catch(() => {
+											// try again
+											attempt(err);
+										});
+							} else {
 								// try again
 								attempt(err);
-							});
-						} else {
-							// try again
-							attempt(err);
-						}
-					});
+							}
+						});
 			}
 
 			// start trying!
@@ -166,7 +168,7 @@ class ImageDeployer {
 
 	deployImage(image, branch, committer, message, save) {
 		const self = this;
-		return new Promise(function(resolve, reject) {
+		return new Promise(function (resolve, reject) {
 			const configRequest = {
 				owner: self.options.github.user,
 				repo: self.options.github.repo,
@@ -174,13 +176,13 @@ class ImageDeployer {
 				ref: self.options.github.branch
 			};
 			self.github.getContent(configRequest)
-				.then(function(configResponse) {
-					const rawConfig = new Buffer(configResponse.data.content, configResponse.data.encoding).toString("ascii");
-					const config = yaml.safeLoad(rawConfig);
-					return self.attemptCommit(config, image, branch, committer, message, save);
-				})
-				.then(resolve)
-				.catch(reject);
+					.then(function (configResponse) {
+						const rawConfig = new Buffer(configResponse.data.content, configResponse.data.encoding).toString("ascii");
+						const config = yaml.safeLoad(rawConfig);
+						return self.attemptCommit(config, image, branch, committer, message, save);
+					})
+					.then(resolve)
+					.catch(reject);
 		});
 	}
 }
