@@ -3,6 +3,9 @@
 const GitHubApi = require("github");
 const Promise = require("bluebird");
 const _ = require("lodash");
+const fse = require("fs-extra");
+const fseEnsureDir = Promise.promisify(fse.ensureDir);
+const fseWriteFile = Promise.promisify(fse.writeFile);
 const path = require("path");
 const yaml = require("js-yaml");
 var logger = require("log4js").getLogger();
@@ -159,6 +162,17 @@ class ImageDeployer {
 								attempt(err);
 							}
 						});
+			}
+
+			if (!save) {
+				let localFile = {};
+				localFile[property] = image;
+				let localFileBuffer = new Buffer(yaml.safeDump(localFile));
+				let localImageFilePath = path.join("output", imageFilePath);
+				let imageDirname = path.dirname(localImageFilePath);
+				logger.info("Writing image file to ", localImageFilePath);
+				fseEnsureDir(imageDirname).then(() => fseWriteFile(localImageFilePath, localFileBuffer));
+				return;
 			}
 
 			// start trying!
