@@ -1,37 +1,38 @@
 {
-  "name": "kit-image-deployer",
-  "version": "0.0.0-semantic-release",
-  "description": "A service that can be used to update given yaml files within a git repository with a new docker image path.",
-  "repository": {
-    "type": "git",
-    "url": "git://github.com/InVisionApp/kit-image-deployer"
-  },
-  "author": "Chesley Brown <chesley@invisionapp.com>",
-  "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/InVisionApp/kit-image-deployer/issues"
-  },
-  "homepage": "https://github.com/InVisionApp/kit-image-deployer",
-  "main": "./src/index.js",
-  "bin": "./src/image-deployer",
-  "scripts": {
-    "lint": "eslint src test",
-    "test": "mocha test --recursive"
-  },
-  "dependencies": {
-    "bluebird": "3.3.4",
-    "commander": "2.9.0",
-    "lodash": "4.6.1",
-    "log4js": "0.6.33",
-    "github": "9.2.0",
-    "js-yaml": "3.5.4"
-  },
-  "devDependencies": {
-    "chai": "3.5.0",
-    "mocha": "2.4.5"
-  },
-  "files": [
-    "LICENSE",
-    "src"
-  ]
+	"name": "kit-image-deployer",
+	"version": "0.0.0-semantic-release",
+	"description": "A service that can be used to update given yaml files within a git repository with a new docker image path.",
+	"repository": {
+		"type": "git",
+		"url": "git://github.com/InVisionApp/kit-image-deployer"
+	},
+	"author": "Chesley Brown <chesley@invisionapp.com>",
+	"license": "MIT",
+	"bugs": {
+		"url": "https://github.com/InVisionApp/kit-image-deployer/issues"
+	},
+	"homepage": "https://github.com/InVisionApp/kit-image-deployer",
+	"main": "./src/index.js",
+	"bin": "./src/image-deployer",
+	"scripts": {
+		"lint": "eslint src test",
+		"test": "mocha test --recursive"
+	},
+	"dependencies": {
+		"fs-extra": "0.30.0",
+		"bluebird": "3.3.4",
+		"commander": "2.9.0",
+		"github": "9.2.0",
+		"js-yaml": "3.5.4",
+		"lodash": "4.6.1",
+		"log4js": "0.6.33"
+	},
+	"devDependencies": {
+		"chai": "3.5.0",
+		"mocha": "2.4.5"
+	},
+	"files": [
+		"LICENSE",
+		"src"
+	]
 }
