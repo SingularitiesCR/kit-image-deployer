@@ -41,7 +41,7 @@ class ImageDeployer {
 	}
 
 	deployCommitId(commitId, branch, committer, message, save) {
-		var image = this.options.docker.registry + "/" + this.options.docker.repo + ":" + branch.replace(/^\//, "-") + "-" + commitId;
+		var image = this.options.docker.registry + "/" + this.options.docker.repo + ":" + branch.replace(/\//, "-") + "-" + commitId;
 		return this.deployImage(image, branch, committer, message, save);
 	}
 
@@ -81,7 +81,7 @@ class ImageDeployer {
 					config.images.path.replace(/^\//, ""),
 					self.options.docker.registry,
 					self.options.docker.repo,
-					branch + ".yaml");
+					branch.replace(/\//,"-") + ".yaml");
 			const property = config.images.property;
 			var tries = 0;
 
